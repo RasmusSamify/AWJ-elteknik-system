@@ -4,14 +4,17 @@
 
 const CONFIG = {
     supabase: {
-        url: 'https://wohafzptvjtymnsexaxo.supabase.co', // Lägg till din Supabase URL
-        anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvaGFmenB0dmp0eW1uc2V4YXhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1NTQwODMsImV4cCI6MjA5MDEzMDA4M30.crgqtpx6_kVM1oLNklo1JSw9kUZ6HVI52-JHjNKcVkA' // Lägg till din Supabase Anon Key
+        url: 'https://wohafzptvjtymnsexaxo.supabase.co',
+        anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvaGFmenB0dmp0eW1uc2V4YXhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1NTQwODMsImV4cCI6MjA5MDEzMDA4M30.crgqtpx6_kVM1oLNklo1JSw9kUZ6HVI52-JHjNKcVkA'
     }
 };
 
 // Initiera Supabase
 const { createClient } = supabase;
 const supabaseClient = createClient(CONFIG.supabase.url, CONFIG.supabase.anonKey);
+
+// Gör Supabase client tillgänglig för widget
+window.supabaseClient = supabaseClient;
 
 // ==========================================
 // STATE MANAGEMENT
@@ -187,36 +190,7 @@ function switchView(viewName) {
     chatView.classList.toggle('hidden', viewName !== 'chat');
     savedAssessmentsView.classList.toggle('hidden', viewName !== 'saved-assessments');
     adminView.classList.toggle('hidden', viewName !== 'admin');
-window.addEventListener('message', (event) => {
-    if (event.data.type === 'AWJ_WIDGET_NAVIGATE') {
-        // Navigera till rätt vy
-        switchView(event.data.view);
-        
-        // Om det finns prefill-data (t.ex. från ROT-kalkyl)
-        if (event.data.prefill) {
-            // Fyll i formulär med prefill-data
-            if (event.data.prefill.rotLaborCost) {
-                // Du kan lägga ROT-värden i en global variabel om du vill visa dem
-                console.log('ROT labor:', event.data.prefill.rotLaborCost);
-                console.log('ROT material:', event.data.prefill.rotMaterialCost);
-                
-                // Exempel: Du kan fylla i workDescription automatiskt
-                const workDesc = document.getElementById('workDescription');
-                if (workDesc) {
-                    workDesc.value = `Projekt med ROT-avdrag:\nArbetskostnad: ${event.data.prefill.rotLaborCost} kr\nMaterialkostnad: ${event.data.prefill.rotMaterialCost} kr`;
-                }
-            }
-            
-            if (event.data.prefill.checklistType) {
-                // Sätt checklist-typ i workDescription
-                const workDesc = document.getElementById('workDescription');
-                if (workDesc && !workDesc.value) {
-                    workDesc.value = `Projekt: ${event.data.prefill.checklistType}`;
-                }
-            }
-        }
-    }
-});
+
     const currentViewElement = {
         'dashboard': dashboardView,
         'loading': loadingView,
@@ -231,6 +205,52 @@ window.addEventListener('message', (event) => {
         setTimeout(() => currentViewElement.classList.remove('animate-fade-in'), 500);
     }
 }
+
+// ==========================================
+// WIDGET INTEGRATION
+// ==========================================
+
+window.addEventListener('message', (event) => {
+    if (event.data.type === 'AWJ_WIDGET_NAVIGATE') {
+        console.log('📨 Widget navigation:', event.data);
+        
+        // Navigera till rätt vy
+        switchView(event.data.view);
+        
+        // Om det finns prefill-data (t.ex. från ROT-kalkyl)
+        if (event.data.prefill) {
+            // Fyll i formulär med prefill-data
+            if (event.data.prefill.rotLaborCost) {
+                console.log('💰 ROT data received:', event.data.prefill);
+                
+                // Fyll i workDescription automatiskt med ROT-info
+                const workDesc = document.getElementById('workDescription');
+                if (workDesc) {
+                    workDesc.value = `Projekt med ROT-avdrag:\nArbetskostnad: ${event.data.prefill.rotLaborCost} kr\nMaterialkostnad: ${event.data.prefill.rotMaterialCost} kr`;
+                }
+                
+                // Visa ett litet meddelande (valfritt)
+                const totalCost = event.data.prefill.rotLaborCost + event.data.prefill.rotMaterialCost;
+                const rotSaving = Math.round(event.data.prefill.rotLaborCost * 0.3);
+                console.log(`✓ Total kostnad: ${totalCost} kr, ROT-avdrag: ${rotSaving} kr`);
+            }
+            
+            if (event.data.prefill.checklistType) {
+                console.log('✅ Checklist type:', event.data.prefill.checklistType);
+                
+                // Sätt checklist-typ i workDescription
+                const workDesc = document.getElementById('workDescription');
+                if (workDesc && !workDesc.value) {
+                    workDesc.value = `Projekt: ${event.data.prefill.checklistType}`;
+                }
+            }
+        }
+    }
+});
+
+// ==========================================
+// NAVIGATION EVENT LISTENERS
+// ==========================================
 
 navBtns.forEach(btn => {
     btn.addEventListener('click', () => switchView(btn.dataset.view));
