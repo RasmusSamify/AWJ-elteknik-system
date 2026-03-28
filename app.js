@@ -468,8 +468,201 @@ const clearPdfsBtn = document.getElementById('clearPdfsBtn');
 const pdfResults = document.getElementById('pdfResults');
 const pdfResultsList = document.getElementById('pdfResultsList');
 
+// Document list elements
+const documentsList = document.getElementById('documentsList');
+const docSearchInput = document.getElementById('docSearchInput');
+const docCategoryFilter = document.getElementById('docCategoryFilter');
+const refreshDocsBtn = document.getElementById('refreshDocsBtn');
+const docCount = document.getElementById('docCount');
+
 let pdfFiles = [];
 let processedCount = 0;
+let allDocuments = [];
+let filteredDocuments = [];
+
+// Load documents when admin view is opened
+async function loadDocuments() {
+    try {
+        const { data, error } = await supabaseClient
+            .from('knowledge_base')
+            .select('id, category, title, content, created_at, created_by, active')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        allDocuments = data || [];
+        filteredDocuments = allDocuments;
+        docCount.textContent = allDocuments.length;
+        renderDocuments();
+    } catch (error) {
+        console.error('Error loading documents:', error);
+        documentsList.innerHTML = `
+            <div style="padding: 2rem; text-align: center; color: #ef4444;">
+                ⚠️ Kunde inte ladda dokument: ${error.message}
+            </div>
+        `;
+    }
+}
+
+function renderDocuments() {
+    if (filteredDocuments.length === 0) {
+        documentsList.innerHTML = `
+            <div style="padding: 3rem; text-align: center; color: var(--color-text-muted);">
+                ${allDocuments.length === 0 ? '📭 Inga dokument i kunskapsbasen än' : '🔍 Inga dokument matchar din sökning'}
+            </div>
+        `;
+        return;
+    }
+
+    documentsList.innerHTML = filteredDocuments.map(doc => {
+        const createdDate = new Date(doc.created_at).toLocaleDateString('sv-SE');
+        const preview = doc.content.substring(0, 150).replace(/\n/g, ' ') + '...';
+        
+        return `
+            <div style="padding: 1.5rem; border-bottom: 1px solid var(--color-border); background: white; transition: background 0.2s;" 
+                 onmouseover="this.style.background='var(--color-bg)'" 
+                 onmouseout="this.style.background='white'">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.75rem;">
+                    <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
+                            <h3 style="font-weight: 600; color: var(--color-primary); margin: 0;">${doc.title}</h3>
+                            <span style="padding: 0.25rem 0.75rem; background: rgba(249, 115, 22, 0.1); color: var(--color-accent); border-radius: 12px; font-size: 0.75rem; font-weight: 600;">
+                                ${doc.category}
+                            </span>
+                            ${!doc.active ? '<span style="padding: 0.25rem 0.75rem; background: rgba(156, 163, 175, 0.2); color: #9ca3af; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">Inaktiv</span>' : ''}
+                        </div>
+                        <p style="font-size: 0.875rem; color: var(--color-text-muted); margin: 0; line-height: 1.5;">${preview}</p>
+                        <p style="font-size: 0.75rem; color: var(--color-text-light); margin-top: 0.5rem; margin-bottom: 0;">
+                            Skapad: ${createdDate}
+                        </p>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; margin-left: 1rem;">
+                        <button onclick="viewDocument('${doc.id}')" style="padding: 0.5rem 0.75rem; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 6px; color: var(--color-text); cursor: pointer; font-size: 0.875rem; white-space: nowrap;">
+                            👁️ Visa
+                        </button>
+                        <button onclick="toggleDocumentActive('${doc.id}', ${doc.active})" style="padding: 0.5rem 0.75rem; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 6px; color: var(--color-text); cursor: pointer; font-size: 0.875rem; white-space: nowrap;">
+                            ${doc.active ? '🔕 Inaktivera' : '✅ Aktivera'}
+                        </button>
+                        <button onclick="deleteDocument('${doc.id}', '${doc.title.replace(/'/g, "\\'")}')" style="padding: 0.5rem 0.75rem; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; color: #ef4444; cursor: pointer; font-size: 0.875rem;">
+                            🗑️
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+async function viewDocument(docId) {
+    try {
+        const { data, error } = await supabaseClient
+            .from('knowledge_base')
+            .select('*')
+            .eq('id', docId)
+            .single();
+
+        if (error) throw error;
+
+        // Create modal
+        const modal = document.createElement('div');
+        modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 2rem;';
+        modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+        modal.innerHTML = `
+            <div style="background: white; border-radius: 12px; max-width: 800px; width: 100%; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column;" onclick="event.stopPropagation()">
+                <div style="padding: 2rem; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: start;">
+                    <div>
+                        <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem;">${data.title}</h2>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <span style="padding: 0.25rem 0.75rem; background: rgba(249, 115, 22, 0.1); color: var(--color-accent); border-radius: 12px; font-size: 0.875rem; font-weight: 600;">
+                                ${data.category}
+                            </span>
+                            <span style="padding: 0.25rem 0.75rem; background: var(--color-bg); border-radius: 12px; font-size: 0.875rem; color: var(--color-text-muted);">
+                                ${new Date(data.created_at).toLocaleDateString('sv-SE')}
+                            </span>
+                        </div>
+                    </div>
+                    <button onclick="this.closest('[style*=fixed]').remove()" style="background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 6px; padding: 0.5rem; cursor: pointer; font-size: 1.25rem; line-height: 1;">
+                        ✕
+                    </button>
+                </div>
+                <div style="padding: 2rem; overflow-y: auto; flex: 1;">
+                    <div style="white-space: pre-wrap; line-height: 1.8; color: var(--color-text);">${data.content}</div>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+    } catch (error) {
+        alert('Kunde inte ladda dokument: ' + error.message);
+    }
+}
+
+async function toggleDocumentActive(docId, currentActive) {
+    if (!confirm(`Vill du ${currentActive ? 'inaktivera' : 'aktivera'} detta dokument?`)) return;
+
+    try {
+        const { error } = await supabaseClient
+            .from('knowledge_base')
+            .update({ active: !currentActive })
+            .eq('id', docId);
+
+        if (error) throw error;
+
+        await loadDocuments();
+    } catch (error) {
+        alert('Kunde inte uppdatera dokument: ' + error.message);
+    }
+}
+
+async function deleteDocument(docId, title) {
+    if (!confirm(`Är du säker på att du vill radera:\n\n"${title}"\n\nDetta går inte att ångra!`)) return;
+
+    try {
+        const { error } = await supabaseClient
+            .from('knowledge_base')
+            .delete()
+            .eq('id', docId);
+
+        if (error) throw error;
+
+        await loadDocuments();
+        alert('✅ Dokumentet har raderats');
+    } catch (error) {
+        alert('Kunde inte radera dokument: ' + error.message);
+    }
+}
+
+function filterDocuments() {
+    const searchTerm = docSearchInput.value.toLowerCase();
+    const category = docCategoryFilter.value;
+
+    filteredDocuments = allDocuments.filter(doc => {
+        const matchesSearch = !searchTerm || 
+            doc.title.toLowerCase().includes(searchTerm) || 
+            doc.content.toLowerCase().includes(searchTerm);
+        
+        const matchesCategory = !category || doc.category === category;
+
+        return matchesSearch && matchesCategory;
+    });
+
+    renderDocuments();
+}
+
+// Event listeners for document list
+docSearchInput.addEventListener('input', filterDocuments);
+docCategoryFilter.addEventListener('change', filterDocuments);
+refreshDocsBtn.addEventListener('click', loadDocuments);
+
+// Load documents when switching to admin view
+const originalSwitchView = switchView;
+switchView = function(viewName) {
+    originalSwitchView(viewName);
+    if (viewName === 'admin') {
+        loadDocuments();
+    }
+};
 
 // Drag & Drop handlers
 pdfDropZone.addEventListener('click', () => pdfFileInput.click());
@@ -631,6 +824,9 @@ processPdfsBtn.addEventListener('click', async () => {
             </div>
         `).join('');
         pdfResults.style.display = 'block';
+        
+        // Refresh document list
+        await loadDocuments();
     }
     
     processPdfsBtn.textContent = `✅ ${processedCount} dokument tillagda!`;
