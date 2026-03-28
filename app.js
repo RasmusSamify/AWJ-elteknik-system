@@ -474,6 +474,8 @@ const docSearchInput = document.getElementById('docSearchInput');
 const docCategoryFilter = document.getElementById('docCategoryFilter');
 const refreshDocsBtn = document.getElementById('refreshDocsBtn');
 const docCount = document.getElementById('docCount');
+const performanceWarning = document.getElementById('performanceWarning');
+const warningDocCount = document.getElementById('warningDocCount');
 
 let pdfFiles = [];
 let processedCount = 0;
@@ -493,6 +495,15 @@ async function loadDocuments() {
         allDocuments = data || [];
         filteredDocuments = allDocuments;
         docCount.textContent = allDocuments.length;
+        
+        // Show performance warning if 50+ documents
+        if (allDocuments.length >= 50) {
+            warningDocCount.textContent = allDocuments.length;
+            performanceWarning.style.display = 'block';
+        } else {
+            performanceWarning.style.display = 'none';
+        }
+        
         renderDocuments();
     } catch (error) {
         console.error('Error loading documents:', error);
