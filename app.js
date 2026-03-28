@@ -4,8 +4,8 @@
 
 const CONFIG = {
     supabase: {
-        url: 'https://wohafzptvjtymnsexaxo.supabase.co', // <-- DIN Project URL här
-        anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvaGFmenB0dmp0eW1uc2V4YXhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1NTQwODMsImV4cCI6MjA5MDEzMDA4M30.crgqtpx6_kVM1oLNklo1JSw9kUZ6HVI52-JHjNKcVkA' // <-- DIN anon public key här
+        url: '', // Lägg till din Supabase URL
+        anonKey: '' // Lägg till din Supabase Anon Key
     }
 };
 
@@ -121,11 +121,16 @@ logoutBtn.addEventListener('click', async () => {
 async function showMainApp() {
     const { data: profile } = await supabaseClient
         .from('profiles')
-        .select('full_name')
+        .select('full_name, role')
         .eq('id', state.user.id)
         .single();
 
     userName.textContent = profile?.full_name || state.user.email.split('@')[0];
+    
+    // Show admin button if user is admin
+    if (profile?.role === 'admin') {
+        adminNavBtn.classList.remove('hidden');
+    }
     
     await loadKnowledgeBase();
     
@@ -179,12 +184,14 @@ function switchView(viewName) {
     loadingView.classList.toggle('hidden', viewName !== 'loading');
     reportView.classList.toggle('hidden', viewName !== 'report');
     chatView.classList.toggle('hidden', viewName !== 'chat');
+    adminView.classList.toggle('hidden', viewName !== 'admin');
 
     const currentViewElement = {
         'dashboard': dashboardView,
         'loading': loadingView,
         'report': reportView,
-        'chat': chatView
+        'chat': chatView,
+        'admin': adminView
     }[viewName];
 
     if (currentViewElement && !currentViewElement.classList.contains('hidden')) {
@@ -441,6 +448,207 @@ chatForm.addEventListener('submit', async (e) => {
 
 chatInput.addEventListener('input', () => {
     chatSendBtn.disabled = !chatInput.value.trim();
+});
+
+// ==========================================
+// ADMIN - PDF UPLOAD TO KNOWLEDGE BASE
+// ==========================================
+
+// PDF.js setup
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+const adminView = document.getElementById('adminView');
+const adminNavBtn = document.getElementById('adminNavBtn');
+const pdfDropZone = document.getElementById('pdfDropZone');
+const pdfFileInput = document.getElementById('pdfFileInput');
+const pdfFileList = document.getElementById('pdfFileList');
+const pdfActionButtons = document.getElementById('pdfActionButtons');
+const processPdfsBtn = document.getElementById('processPdfsBtn');
+const clearPdfsBtn = document.getElementById('clearPdfsBtn');
+const pdfResults = document.getElementById('pdfResults');
+const pdfResultsList = document.getElementById('pdfResultsList');
+
+let pdfFiles = [];
+let processedCount = 0;
+
+// Drag & Drop handlers
+pdfDropZone.addEventListener('click', () => pdfFileInput.click());
+
+pdfDropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    pdfDropZone.style.borderColor = 'var(--color-accent)';
+    pdfDropZone.style.background = 'rgba(249, 115, 22, 0.05)';
+});
+
+pdfDropZone.addEventListener('dragleave', () => {
+    pdfDropZone.style.borderColor = 'var(--color-border)';
+    pdfDropZone.style.background = 'var(--color-bg)';
+});
+
+pdfDropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    pdfDropZone.style.borderColor = 'var(--color-border)';
+    pdfDropZone.style.background = 'var(--color-bg)';
+    handlePdfFiles(e.dataTransfer.files);
+});
+
+pdfFileInput.addEventListener('change', (e) => {
+    handlePdfFiles(e.target.files);
+});
+
+function handlePdfFiles(files) {
+    const newPdfFiles = Array.from(files).filter(f => f.type === 'application/pdf');
+    pdfFiles = [...pdfFiles, ...newPdfFiles];
+    renderPdfFileList();
+    pdfFileList.style.display = 'block';
+    pdfActionButtons.style.display = 'block';
+}
+
+function renderPdfFileList() {
+    pdfFileList.innerHTML = pdfFiles.map((file, index) => `
+        <div style="background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem;" id="pdf-item-${index}">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <div style="font-weight: 600; color: var(--color-accent);">${file.name}</div>
+                <div style="padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.85rem; background: rgba(156, 163, 175, 0.2); color: #9ca3af;" id="pdf-status-${index}">
+                    Väntar
+                </div>
+            </div>
+            <div style="display: grid; gap: 1rem;">
+                <div>
+                    <label style="display: block; font-size: 0.875rem; margin-bottom: 0.5rem; color: var(--color-text-muted);">Kategori (tom = AI väljer)</label>
+                    <select id="pdf-category-${index}" class="form-input">
+                        <option value="">🤖 Låt AI välja</option>
+                        <option value="Säkerhet">Säkerhet</option>
+                        <option value="Procedur">Procedur</option>
+                        <option value="Regelverk">Regelverk</option>
+                        <option value="Teknik">Teknik</option>
+                        <option value="Övrigt">Övrigt</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display: block; font-size: 0.875rem; margin-bottom: 0.5rem; color: var(--color-text-muted);">Titel (tom = AI skapar)</label>
+                    <input type="text" id="pdf-title-${index}" class="form-input" placeholder="T.ex. 'AFS 2012:3 Arbetsmiljöverkets föreskrifter'">
+                </div>
+            </div>
+            <div style="width: 100%; height: 4px; background: rgba(255, 255, 255, 0.1); border-radius: 2px; margin-top: 1rem; display: none;" id="pdf-progress-${index}">
+                <div style="height: 100%; background: var(--color-accent); width: 0%; transition: width 0.3s;"></div>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function extractTextFromPDF(file) {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+    
+    let fullText = '';
+    const totalPages = pdf.numPages;
+    
+    for (let i = 1; i <= totalPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items.map(item => item.str).join(' ');
+        fullText += pageText + '\n\n';
+    }
+    
+    return { text: fullText, pages: totalPages };
+}
+
+processPdfsBtn.addEventListener('click', async () => {
+    processPdfsBtn.disabled = true;
+    processPdfsBtn.textContent = '⏳ Processar med AI...';
+    processedCount = 0;
+    pdfResults.style.display = 'none';
+    const results = [];
+
+    for (let i = 0; i < pdfFiles.length; i++) {
+        const file = pdfFiles[i];
+        const statusEl = document.getElementById(`pdf-status-${i}`);
+        const progressEl = document.getElementById(`pdf-progress-${i}`);
+        const progressBar = progressEl?.querySelector('div');
+        
+        try {
+            // Update status
+            statusEl.textContent = 'Läser PDF...';
+            statusEl.style.background = 'rgba(249, 115, 22, 0.2)';
+            statusEl.style.color = 'var(--color-accent)';
+            progressEl.style.display = 'block';
+            if (progressBar) progressBar.style.width = '20%';
+
+            // Extract PDF text
+            const { text } = await extractTextFromPDF(file);
+            
+            if (progressBar) progressBar.style.width = '40%';
+            statusEl.textContent = 'AI formaterar...';
+
+            // Get user inputs
+            const userCategory = document.getElementById(`pdf-category-${i}`).value;
+            const userTitle = document.getElementById(`pdf-title-${i}`).value.trim();
+
+            if (progressBar) progressBar.style.width = '60%';
+            statusEl.textContent = 'Lägger till i kunskapsbas...';
+
+            // Call Edge Function
+            const { data, error } = await supabaseClient.functions.invoke('process-pdf', {
+                body: {
+                    pdfText: text,
+                    userTitle: userTitle || null,
+                    userCategory: userCategory || null
+                }
+            });
+
+            if (error) throw error;
+
+            if (progressBar) progressBar.style.width = '100%';
+            statusEl.textContent = 'Klar ✓';
+            statusEl.style.background = 'rgba(34, 197, 94, 0.2)';
+            statusEl.style.color = '#22c55e';
+
+            results.push({
+                filename: file.name,
+                title: data.data.title,
+                category: data.data.category
+            });
+
+            processedCount++;
+
+        } catch (error) {
+            console.error('Error processing', file.name, error);
+            statusEl.textContent = 'Fel: ' + error.message;
+            statusEl.style.background = 'rgba(239, 68, 68, 0.2)';
+            statusEl.style.color = '#ef4444';
+        }
+    }
+
+    // Show results
+    if (results.length > 0) {
+        pdfResultsList.innerHTML = results.map(r => `
+            <div style="padding: 0.75rem; background: white; border-radius: 6px; margin-bottom: 0.5rem;">
+                <div style="font-weight: 600; color: var(--color-primary);">${r.title}</div>
+                <div style="font-size: 0.875rem; color: var(--color-text-muted); margin-top: 0.25rem;">
+                    Kategori: ${r.category} • Från: ${r.filename}
+                </div>
+            </div>
+        `).join('');
+        pdfResults.style.display = 'block';
+    }
+    
+    processPdfsBtn.textContent = `✅ ${processedCount} dokument tillagda!`;
+    setTimeout(() => {
+        processPdfsBtn.textContent = '🤖 Processa & Lägg till i kunskapsbas';
+        processPdfsBtn.disabled = false;
+    }, 3000);
+});
+
+clearPdfsBtn.addEventListener('click', () => {
+    if (confirm('Vill du radera alla valda filer?')) {
+        pdfFiles = [];
+        pdfFileList.innerHTML = '';
+        pdfFileList.style.display = 'none';
+        pdfActionButtons.style.display = 'none';
+        pdfResults.style.display = 'none';
+        pdfFileInput.value = '';
+    }
 });
 
 // ==========================================
