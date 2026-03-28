@@ -285,13 +285,21 @@ function renderReport() {
     reportContent.innerHTML = '';
 
     const paragraphs = state.generatedReport.split('\n');
+    let consecutiveEmptyLines = 0;
     
     paragraphs.forEach(paragraph => {
         const trimmed = paragraph.trim();
+        
+        // Skip excessive empty lines (max 1 empty line between sections)
         if (!trimmed) {
-            reportContent.appendChild(document.createElement('br'));
+            consecutiveEmptyLines++;
+            if (consecutiveEmptyLines <= 1) {
+                reportContent.appendChild(document.createElement('br'));
+            }
             return;
         }
+        
+        consecutiveEmptyLines = 0;
 
         const isHeading = trimmed === trimmed.toUpperCase() && trimmed.length > 3;
         
