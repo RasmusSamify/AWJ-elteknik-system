@@ -7,38 +7,8 @@
     X-Content-Type-Options = "nosniff"
     X-Frame-Options = "DENY"
     X-XSS-Protection = "1; mode=block"
-    Referrer-Policy = "strict-origin-when-cross-origin"
 
 [[headers]]
-  for = "*.html"
+  for = "/*.js"
   [headers.values]
-    Cache-Control = "public, max-age=0, must-revalidate"
-
-[[headers]]
-  for = "*.js"
-  [headers.values]
-    Cache-Control = "public, max-age=0, must-revalidate"
     Content-Type = "application/javascript; charset=utf-8"
-```
-
-### Steg 3: Spara
-
-1. Scrolla ner
-2. I "Commit message" box, skriv: `Fix MIME type error`
-3. Klicka **"Commit changes"**
-
----
-
-### Steg 4: Skapa _headers fil
-
-1. Gå tillbaka till root (klicka på repo-namnet)
-2. Klicka **"Add file"** → **"Create new file"**
-3. I filnamns-fältet, skriv: `_headers`
-4. I innehållet, klistra in:
-```
-/*
-  X-Content-Type-Options: nosniff
-  X-Frame-Options: DENY
-
-/*.js
-  Content-Type: application/javascript; charset=utf-8
