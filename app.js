@@ -737,6 +737,12 @@ function renderPdfFileList() {
             <div style="width: 100%; height: 4px; background: rgba(255, 255, 255, 0.1); border-radius: 2px; margin-top: 1rem; display: none;" id="pdf-progress-${index}">
                 <div style="height: 100%; background: var(--color-accent); width: 0%; transition: width 0.3s;"></div>
             </div>
+            <div id="pdf-thinking-${index}" style="display: none; margin-top: 1rem; padding: 1rem; background: rgba(249, 115, 22, 0.05); border-radius: 6px; border-left: 3px solid var(--color-accent);">
+                <div class="ai-thinking">
+                    <span class="ai-thinking-icon">🤖</span>
+                    <span id="pdf-thinking-text-${index}">AI tänker...</span>
+                </div>
+            </div>
         </div>
     `).join('');
 }
@@ -770,9 +776,11 @@ processPdfsBtn.addEventListener('click', async () => {
         const statusEl = document.getElementById(`pdf-status-${i}`);
         const progressEl = document.getElementById(`pdf-progress-${i}`);
         const progressBar = progressEl?.querySelector('div');
+        const thinkingEl = document.getElementById(`pdf-thinking-${i}`);
+        const thinkingText = document.getElementById(`pdf-thinking-text-${i}`);
         
         try {
-            // Update status
+            // Update status - Reading PDF
             statusEl.textContent = 'Läser PDF...';
             statusEl.style.background = 'rgba(249, 115, 22, 0.2)';
             statusEl.style.color = 'var(--color-accent)';
@@ -783,14 +791,20 @@ processPdfsBtn.addEventListener('click', async () => {
             const { text } = await extractTextFromPDF(file);
             
             if (progressBar) progressBar.style.width = '40%';
-            statusEl.textContent = 'AI formaterar...';
+            
+            // Show AI thinking animation
+            thinkingEl.style.display = 'block';
+            thinkingText.textContent = '🧠 AI analyserar dokumentet...';
+            statusEl.textContent = 'AI processar...';
 
+            await new Promise(resolve => setTimeout(resolve, 500)); // Short delay for visual effect
+            
             // Get user inputs
             const userCategory = document.getElementById(`pdf-category-${i}`).value;
             const userTitle = document.getElementById(`pdf-title-${i}`).value.trim();
 
             if (progressBar) progressBar.style.width = '60%';
-            statusEl.textContent = 'Lägger till i kunskapsbas...';
+            thinkingText.textContent = '✍️ AI formaterar till Markdown...';
 
             // Call Edge Function
             const { data, error } = await supabaseClient.functions.invoke('process-pdf', {
@@ -803,7 +817,13 @@ processPdfsBtn.addEventListener('click', async () => {
 
             if (error) throw error;
 
+            if (progressBar) progressBar.style.width = '90%';
+            thinkingText.textContent = '💾 Sparar i kunskapsbas...';
+
+            await new Promise(resolve => setTimeout(resolve, 300)); // Short delay
+
             if (progressBar) progressBar.style.width = '100%';
+            thinkingEl.style.display = 'none';
             statusEl.textContent = 'Klar ✓';
             statusEl.style.background = 'rgba(34, 197, 94, 0.2)';
             statusEl.style.color = '#22c55e';
@@ -818,6 +838,7 @@ processPdfsBtn.addEventListener('click', async () => {
 
         } catch (error) {
             console.error('Error processing', file.name, error);
+            if (thinkingEl) thinkingEl.style.display = 'none';
             statusEl.textContent = 'Fel: ' + error.message;
             statusEl.style.background = 'rgba(239, 68, 68, 0.2)';
             statusEl.style.color = '#ef4444';
