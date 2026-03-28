@@ -4,8 +4,8 @@
 
 const CONFIG = {
     supabase: {
-        url: '', // Lägg till din Supabase URL
-        anonKey: '' // Lägg till din Supabase Anon Key
+        url: 'https://wohafzptvjtymnsexaxo.supabase.co', // Lägg till din Supabase URL
+        anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvaGFmenB0dmp0eW1uc2V4YXhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1NTQwODMsImV4cCI6MjA5MDEzMDA4M30.crgqtpx6_kVM1oLNklo1JSw9kUZ6HVI52-JHjNKcVkA' // Lägg till din Supabase Anon Key
     }
 };
 
