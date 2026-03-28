@@ -984,6 +984,31 @@
             width: 0.875rem;
             height: 0.875rem;
         }
+
+        /* AI Processing Animation */
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .ai-thinking {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--color-accent);
+            font-weight: 600;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .ai-thinking-icon {
+            animation: spin 1s linear infinite;
+            font-size: 1.25rem;
+        }
     </style>
 </head>
 <body>
