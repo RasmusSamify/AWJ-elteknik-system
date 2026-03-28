@@ -49,6 +49,7 @@ const loadingView = document.getElementById('loadingView');
 const loadingSubtitle = document.getElementById('loadingSubtitle');
 const reportView = document.getElementById('reportView');
 const chatView = document.getElementById('chatView');
+const savedAssessmentsView = document.getElementById('savedAssessmentsView');
 
 const navBtns = document.querySelectorAll('.nav-btn');
 const assessmentForm = document.getElementById('assessmentForm');
@@ -184,6 +185,7 @@ function switchView(viewName) {
     loadingView.classList.toggle('hidden', viewName !== 'loading');
     reportView.classList.toggle('hidden', viewName !== 'report');
     chatView.classList.toggle('hidden', viewName !== 'chat');
+    savedAssessmentsView.classList.toggle('hidden', viewName !== 'saved-assessments');
     adminView.classList.toggle('hidden', viewName !== 'admin');
 
     const currentViewElement = {
@@ -191,6 +193,7 @@ function switchView(viewName) {
         'loading': loadingView,
         'report': reportView,
         'chat': chatView,
+        'saved-assessments': savedAssessmentsView,
         'admin': adminView
     }[viewName];
 
@@ -680,6 +683,8 @@ switchView = function(viewName) {
     originalSwitchView(viewName);
     if (viewName === 'admin') {
         loadDocuments();
+    } else if (viewName === 'saved-assessments') {
+        loadSavedAssessments();
     }
 };
 
@@ -886,6 +891,204 @@ clearPdfsBtn.addEventListener('click', () => {
         pdfFileInput.value = '';
     }
 });
+
+// ==========================================
+// SAVED ASSESSMENTS
+// ==========================================
+
+const assessmentsList = document.getElementById('assessmentsList');
+const assessmentSearchInput = document.getElementById('assessmentSearchInput');
+const assessmentSortSelect = document.getElementById('assessmentSortSelect');
+const refreshAssessmentsBtn = document.getElementById('refreshAssessmentsBtn');
+const assessmentCount = document.getElementById('assessmentCount');
+
+let allAssessments = [];
+let filteredAssessments = [];
+
+// Load saved assessments
+async function loadSavedAssessments() {
+    try {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        
+        const { data, error } = await supabaseClient
+            .from('assessments')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        allAssessments = data || [];
+        filteredAssessments = allAssessments;
+        assessmentCount.textContent = allAssessments.length;
+        
+        renderAssessments();
+    } catch (error) {
+        console.error('Error loading assessments:', error);
+        assessmentsList.innerHTML = `
+            <div style="padding: 2rem; text-align: center; color: #ef4444;">
+                ⚠️ Kunde inte ladda riskbedömningar: ${error.message}
+            </div>
+        `;
+    }
+}
+
+// Render assessments
+function renderAssessments() {
+    if (filteredAssessments.length === 0) {
+        assessmentsList.innerHTML = `
+            <div style="padding: 3rem; text-align: center; color: var(--color-text-muted);">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">📋</div>
+                <div style="font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem;">Inga riskbedömningar än</div>
+                <div style="font-size: 0.875rem;">Skapa din första riskbedömning under "Riskbedömning"</div>
+            </div>
+        `;
+        return;
+    }
+
+    assessmentsList.innerHTML = filteredAssessments.map(assessment => {
+        const date = new Date(assessment.created_at).toLocaleDateString('sv-SE', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
+        return `
+            <div style="background: white; border: 1px solid var(--color-border); border-radius: 8px; padding: 1.5rem; cursor: pointer; transition: all 0.2s;" 
+                 onclick="viewAssessment('${assessment.id}')"
+                 onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'; this.style.borderColor='var(--color-accent)'"
+                 onmouseout="this.style.boxShadow=''; this.style.borderColor='var(--color-border)'">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.75rem;">
+                    <div style="flex: 1;">
+                        <h3 style="font-weight: 700; color: var(--color-primary); margin-bottom: 0.25rem;">
+                            ${assessment.project_name}
+                        </h3>
+                        <div style="font-size: 0.875rem; color: var(--color-text-muted);">
+                            📍 ${assessment.location}
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 0.75rem; color: var(--color-text-muted);">
+                            ${date}
+                        </div>
+                    </div>
+                </div>
+                <div style="font-size: 0.875rem; color: var(--color-text); line-height: 1.5; margin-bottom: 0.75rem;">
+                    ${assessment.work_description.substring(0, 150)}${assessment.work_description.length > 150 ? '...' : ''}
+                </div>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <button onclick="event.stopPropagation(); viewAssessment('${assessment.id}')" 
+                            style="padding: 0.5rem 1rem; background: var(--color-accent); color: white; border: none; border-radius: 6px; font-size: 0.875rem; cursor: pointer; transition: all 0.2s;"
+                            onmouseover="this.style.background='var(--color-accent-hover)'"
+                            onmouseout="this.style.background='var(--color-accent)'">
+                        👁️ Visa
+                    </button>
+                    <button onclick="event.stopPropagation(); printAssessment('${assessment.id}')" 
+                            style="padding: 0.5rem 1rem; background: transparent; color: var(--color-accent); border: 1px solid var(--color-accent); border-radius: 6px; font-size: 0.875rem; cursor: pointer; transition: all 0.2s;"
+                            onmouseover="this.style.background='rgba(249, 115, 22, 0.1)'"
+                            onmouseout="this.style.background='transparent'">
+                        🖨️ Skriv ut
+                    </button>
+                    <button onclick="event.stopPropagation(); deleteAssessment('${assessment.id}')" 
+                            style="padding: 0.5rem 1rem; background: transparent; color: #ef4444; border: 1px solid #ef4444; border-radius: 6px; font-size: 0.875rem; cursor: pointer; transition: all 0.2s;"
+                            onmouseover="this.style.background='rgba(239, 68, 68, 0.1)'"
+                            onmouseout="this.style.background='transparent'">
+                        🗑️
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Search and filter
+function filterAssessments() {
+    const searchTerm = assessmentSearchInput.value.toLowerCase();
+    const sortBy = assessmentSortSelect.value;
+
+    // Filter
+    filteredAssessments = allAssessments.filter(assessment => {
+        const matchesSearch = 
+            assessment.project_name.toLowerCase().includes(searchTerm) ||
+            assessment.location.toLowerCase().includes(searchTerm) ||
+            assessment.work_description.toLowerCase().includes(searchTerm);
+        
+        return matchesSearch;
+    });
+
+    // Sort
+    if (sortBy === 'newest') {
+        filteredAssessments.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    } else if (sortBy === 'oldest') {
+        filteredAssessments.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    } else if (sortBy === 'project') {
+        filteredAssessments.sort((a, b) => a.project_name.localeCompare(b.project_name));
+    }
+
+    renderAssessments();
+}
+
+// View assessment
+async function viewAssessment(id) {
+    try {
+        const { data, error } = await supabaseClient
+            .from('assessments')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (error) throw error;
+
+        // Load into report view
+        state.formData = {
+            projectName: data.project_name,
+            location: data.location,
+            workDescription: data.work_description,
+            specificHazards: data.specific_hazards
+        };
+        state.generatedReport = data.generated_report;
+
+        renderReport();
+        switchView('report');
+    } catch (error) {
+        console.error('Error viewing assessment:', error);
+        alert('Kunde inte ladda riskbedömning');
+    }
+}
+
+// Print assessment
+async function printAssessment(id) {
+    await viewAssessment(id);
+    setTimeout(() => window.print(), 500);
+}
+
+// Delete assessment
+async function deleteAssessment(id) {
+    if (!confirm('Är du säker på att du vill radera denna riskbedömning?')) {
+        return;
+    }
+
+    try {
+        const { error } = await supabaseClient
+            .from('assessments')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+
+        await loadSavedAssessments();
+    } catch (error) {
+        console.error('Error deleting assessment:', error);
+        alert('Kunde inte radera riskbedömning');
+    }
+}
+
+// Event listeners
+assessmentSearchInput.addEventListener('input', filterAssessments);
+assessmentSortSelect.addEventListener('change', filterAssessments);
+refreshAssessmentsBtn.addEventListener('click', loadSavedAssessments);
 
 // ==========================================
 // INITIALIZATION
