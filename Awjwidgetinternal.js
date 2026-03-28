@@ -20,6 +20,13 @@
   // ═══════════════════════════════════════════════════════════════
   //  🎨 CSS STYLES
   // ═══════════════════════════════════════════════════════════════
+  
+  // Import Montserrat font
+  const fontLink = document.createElement('link');
+  fontLink.href = 'https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap';
+  fontLink.rel = 'stylesheet';
+  document.head.appendChild(fontLink);
+  
   var style = document.createElement('style');
   style.textContent = `
     #awj-widget-container * { 
@@ -168,12 +175,14 @@
     .awj-footer { 
       padding: 12px 16px; border-top: 1px solid #e5e5e5; 
       display: flex; align-items: center; justify-content: center; background: #fff;
+      flex-shrink: 0;
     }
     .awj-footer-text { 
       font-size: 11px; color: #666; 
       display: flex; align-items: center; gap: 6px; font-weight: 600;
+      font-family: 'Montserrat', 'IBM Plex Sans', -apple-system, sans-serif;
     }
-    .awj-pdot { width: 6px; height: 6px; border-radius: 50%; background: #10b981; }
+    .awj-pdot { width: 6px; height: 6px; border-radius: 50%; background: #8b5cf6; }
 
     /* ROT Calculator */
     .rot-field { 
@@ -1453,7 +1462,7 @@
           <div class="awj-footer">
             <div class="awj-footer-text">
               <div class="awj-pdot"></div>
-              AWJ Verktygslåda
+              Powered By Samify
             </div>
           </div>
         </div>
