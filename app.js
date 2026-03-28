@@ -187,7 +187,36 @@ function switchView(viewName) {
     chatView.classList.toggle('hidden', viewName !== 'chat');
     savedAssessmentsView.classList.toggle('hidden', viewName !== 'saved-assessments');
     adminView.classList.toggle('hidden', viewName !== 'admin');
-
+window.addEventListener('message', (event) => {
+    if (event.data.type === 'AWJ_WIDGET_NAVIGATE') {
+        // Navigera till rätt vy
+        switchView(event.data.view);
+        
+        // Om det finns prefill-data (t.ex. från ROT-kalkyl)
+        if (event.data.prefill) {
+            // Fyll i formulär med prefill-data
+            if (event.data.prefill.rotLaborCost) {
+                // Du kan lägga ROT-värden i en global variabel om du vill visa dem
+                console.log('ROT labor:', event.data.prefill.rotLaborCost);
+                console.log('ROT material:', event.data.prefill.rotMaterialCost);
+                
+                // Exempel: Du kan fylla i workDescription automatiskt
+                const workDesc = document.getElementById('workDescription');
+                if (workDesc) {
+                    workDesc.value = `Projekt med ROT-avdrag:\nArbetskostnad: ${event.data.prefill.rotLaborCost} kr\nMaterialkostnad: ${event.data.prefill.rotMaterialCost} kr`;
+                }
+            }
+            
+            if (event.data.prefill.checklistType) {
+                // Sätt checklist-typ i workDescription
+                const workDesc = document.getElementById('workDescription');
+                if (workDesc && !workDesc.value) {
+                    workDesc.value = `Projekt: ${event.data.prefill.checklistType}`;
+                }
+            }
+        }
+    }
+});
     const currentViewElement = {
         'dashboard': dashboardView,
         'loading': loadingView,
