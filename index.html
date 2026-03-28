@@ -1216,8 +1216,46 @@
                     <p class="dashboard-subtitle">Ladda upp PDF-filer för att lägga till dokumentation till kunskapsbasen. AI formaterar automatiskt innehållet.</p>
                 </div>
 
+                <!-- Existing Documents List -->
+                <div class="form-card animate-slide-up" style="animation-delay: 0.05s;">
+                    <div class="form-card-content">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                            <div>
+                                <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.25rem;">📚 Befintliga dokument</h2>
+                                <p style="color: var(--color-text-muted); font-size: 0.875rem;">Totalt <span id="docCount">0</span> dokument i kunskapsbasen</p>
+                            </div>
+                            <button class="btn-outline" id="refreshDocsBtn" style="padding: 0.5rem 1rem; background: transparent; border: 1px solid var(--color-border); color: var(--color-text);">
+                                🔄 Uppdatera
+                            </button>
+                        </div>
+
+                        <!-- Search and Filter -->
+                        <div style="display: grid; grid-template-columns: 1fr auto; gap: 1rem; margin-bottom: 1.5rem;">
+                            <input type="text" id="docSearchInput" class="form-input" placeholder="🔍 Sök efter titel eller innehåll...">
+                            <select id="docCategoryFilter" class="form-input" style="width: 200px;">
+                                <option value="">Alla kategorier</option>
+                                <option value="Säkerhet">Säkerhet</option>
+                                <option value="Procedur">Procedur</option>
+                                <option value="Regelverk">Regelverk</option>
+                                <option value="Teknik">Teknik</option>
+                                <option value="Övrigt">Övrigt</option>
+                            </select>
+                        </div>
+
+                        <!-- Documents List -->
+                        <div id="documentsList" style="max-height: 400px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: 8px;">
+                            <div style="padding: 3rem; text-align: center; color: var(--color-text-muted);">
+                                Laddar dokument...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Upload Section -->
                 <div class="form-card animate-slide-up" style="animation-delay: 0.1s;">
                     <div class="form-card-content">
+                        <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1.5rem;">➕ Ladda upp nya dokument</h2>
+                        
                         <div style="border: 3px dashed var(--color-border); border-radius: 12px; padding: 3rem; text-align: center; background: var(--color-bg); cursor: pointer; margin-bottom: 2rem;" id="pdfDropZone">
                             <div style="font-size: 3rem; margin-bottom: 1rem;">📄</div>
                             <h3 style="margin-bottom: 0.5rem;">Släpp PDF-filer här eller klicka för att välja</h3>
