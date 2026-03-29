@@ -369,13 +369,6 @@ function renderReport() {
             reportContent.appendChild(p);
         }
     });
-            reportContent.appendChild(p);
-        } else {
-            const p = document.createElement('p');
-            p.textContent = trimmed;
-            reportContent.appendChild(p);
-        }
-    });
 }
 
 // ==========================================
