@@ -337,21 +337,12 @@ function renderReport() {
     reportContent.innerHTML = '';
 
     const paragraphs = state.generatedReport.split('\n');
-    let consecutiveEmptyLines = 0;
     
     paragraphs.forEach(paragraph => {
         const trimmed = paragraph.trim();
         
-        // Skip excessive empty lines (max 1 empty line between sections)
-        if (!trimmed) {
-            consecutiveEmptyLines++;
-            if (consecutiveEmptyLines <= 1) {
-                reportContent.appendChild(document.createElement('br'));
-            }
-            return;
-        }
-        
-        consecutiveEmptyLines = 0;
+        // Ignorera tomma rader helt! Låt CSS sköta avståndet (margin) mellan <p>-taggarna.
+        if (!trimmed) return; 
 
         const isHeading = trimmed === trimmed.toUpperCase() && trimmed.length > 3;
         
@@ -371,6 +362,13 @@ function renderReport() {
                     p.appendChild(document.createTextNode(part));
                 }
             });
+            reportContent.appendChild(p);
+        } else {
+            const p = document.createElement('p');
+            p.textContent = trimmed;
+            reportContent.appendChild(p);
+        }
+    });
             reportContent.appendChild(p);
         } else {
             const p = document.createElement('p');
